@@ -1,0 +1,56 @@
+WITH first_visit AS (
+    SELECT
+        user_pseudo_id,
+        EXTRACT(DATE FROM TIMESTAMP_MICROS(event_timestamp)) AS first_day,
+        MIN(TIMESTAMP_MICROS(event_timestamp)) AS first_visit_time
+    FROM
+    `turing_data_analytics.raw_events`
+    GROUP BY user_pseudo_id, first_day
+),
+purchase AS (
+    SELECT
+    user_pseudo_id,
+    EXTRACT(DATE FROM TIMESTAMP_MICROS(event_timestamp)) AS purchase_day,
+    MIN(TIMESTAMP_MICROS(event_timestamp)) AS purchase_time
+    FROM
+        `turing_data_analytics.raw_events`
+    WHERE
+        event_name = 'purchase'
+    GROUP BY user_pseudo_id, purchase_day
+),
+everything_else AS(
+  select
+  user_pseudo_id,
+  category, 
+  country,    
+  SUM(purchase_revenue_in_usd) AS revenue,     
+    operating_system,             
+    browser,
+    transaction_id
+    FROM `turing_data_analytics.raw_events`
+    GROUP BY user_pseudo_id, category, country, operating_system, browser, transaction_id
+)
+SELECT
+distinct (first_visit.user_pseudo_id),
+    first_visit.first_day AS day,
+    first_visit.first_visit_time AS first_visit,
+    purchase.purchase_time AS purchase,
+    TIMESTAMP_DIFF(purchase.purchase_time, first_visit.first_visit_time, MINUTE) AS minutes_to_purchase,
+    category, 
+    country,    
+    revenue,     
+    operating_system,             
+    browser,
+    transaction_id             
+FROM
+    first_visit
+INNER JOIN
+    purchase
+ON
+    first_visit.user_pseudo_id = purchase.user_pseudo_id and first_visit.first_day = purchase.purchase_day
+INNER JOIN
+everything_else
+ON
+everything_else.user_pseudo_id = purchase.user_pseudo_id and first_visit.user_pseudo_id = everything_else.user_pseudo_id
+WHERE revenue IS NOT NULL and revenue > 0 and transaction_id IS NOT NULL
+ORDER BY minutes_to_purchase
