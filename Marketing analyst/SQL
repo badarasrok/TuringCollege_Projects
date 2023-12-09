@@ -1,0 +1,109 @@
+WITH main_table AS (
+SELECT
+user_pseudo_id AS user_id,
+TIMESTAMP_MICROS(event_timestamp) AS event_occurred,
+format_date("%A", TIMESTAMP_MICROS(event_timestamp)) as day_of_week,
+campaign,
+category,
+SUM(purchase_revenue_in_usd) AS revenue
+FROM
+`turing_data_analytics.raw_events`
+GROUP BY
+user_id, event_occurred, campaign, day_of_week, category, country
+),
+last_session AS (
+SELECT
+user_id,
+day_of_week,
+event_occurred,
+campaign,
+revenue,
+category,
+LAG(event_occurred, 1) OVER (PARTITION BY user_id ORDER BY event_occurred) AS last_event
+FROM
+main_table
+),
+new_session AS (
+SELECT
+*,
+CASE
+WHEN (event_occurred - last_event) >= INTERVAL '30' MINUTE OR last_event IS NULL THEN 1 ELSE 0 END is_new_session
+FROM
+last_session
+),
+global AS(
+SELECT
+user_id,
+campaign,
+event_occurred,
+day_of_week,
+revenue,
+SUM(is_new_session) OVER (ORDER BY user_id, event_occurred) AS global_session_id,
+SUM(is_new_session) OVER (PARTITION BY user_id ORDER BY event_occurred) AS user_session_id
+FROM new_session
+),
+session_time AS (
+SELECT
+campaign,
+global_session_id,
+user_id,
+DATE_DIFF(MAX(event_occurred), MIN (event_occurred), MINUTE) AS session_time_by_min,
+day_of_week,
+revenue
+FROM
+global
+GROUP BY
+campaign,global_session_id, day_of_week, revenue, user_id
+),
+average_session AS(
+SELECT
+user_id,
+global_session_id,
+AVG(session_time_by_min) as avg_session_in_min
+FROM session_time
+group by global_session_id, user_id
+),
+average_session_by_day AS(
+SELECT
+day_of_week,
+AVG(session_time_by_min) as avg_session_in_min
+FROM session_time AS st
+inner join average_session AS avs on avs.global_session_id = st.global_session_id
+group by day_of_week
+),
+average_session_by_campaign AS (
+SELECT
+AVG(session_time_by_min) as avg_session_in_min,
+CASE WHEN campaign NOT IN ("NewYear_V2", "NewYear_V1", "Data Share Promo", "Holiday_V1", "Holiday_V2", "BlackFriday_V1", "BlackFriday_V2") or campaign is null then "Unknown campaigns" ELSE campaign END as campaign_name
+FROM session_time AS st
+inner join average_session AS avs on avs.global_session_id = st.global_session_id
+group by campaign
+),
+count_session AS (
+SELECT
+COUNT (DISTINCT user_id) AS users,
+COUNT (session_time_by_min) AS number_of_sessions
+FROM session_time
+),
+session_length_by_revenue AS(
+SELECT
+day_of_week,
+AVG(revenue),
+avg_session_in_min
+FROM global AS g
+INNER JOIN average_session AS asv
+ON g.global_session_id = asv.global_session_id
+WHERE revenue is not null
+GROUP by day_of_week, avg_session_in_min
+),
+overall AS (
+SELECT
+event_occurred,
+avg_session_in_min,
+FROM main_table as mt
+INNER JOIN average_session AS asg
+ON mt.user_id = asg.user_id
+)
+SELECT *
+FROM
+overall
