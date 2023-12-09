@@ -1,0 +1,46 @@
+WITH registration AS (
+SELECT
+DISTINCT user_pseudo_id AS users,
+Date_trunc(MIN(PARSE_DATE('%Y%m%d', event_date)), WEEK) AS registration_cohort,
+FROM
+`turing_data_analytics.raw_events`
+group by user_pseudo_id
+),
+purchase AS (
+SELECT
+user_pseudo_id AS users,
+Date_trunc(PARSE_DATE('%Y%m%d', event_date), WEEK) AS purchase_cohort,
+purchase_revenue_in_usd
+FROM
+`turing_data_analytics.raw_events`
+WHERE
+event_name = "purchase"
+),
+joined as(select
+r.users,
+r.registration_cohort,
+p.purchase_cohort,
+p.purchase_revenue_in_usd
+from registration as r
+left join purchase as p on r.users = p.users
+)
+SELECT
+count (distinct users),
+registration_cohort,
+SUM(CASE WHEN (joined.purchase_cohort = joined.registration_cohort) THEN (joined.purchase_revenue_in_usd) END)/count (distinct joined.users) AS week0_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 1 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week1_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 2 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week2_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 3 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week3_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 4 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week4_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 5 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week5_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 6 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week6_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 7 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week7_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 8 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week8_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 9 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week9_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 10 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week10_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 11 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week11_revenue,
+SUM(CASE WHEN joined.purchase_cohort = DATE_ADD(joined.registration_cohort, INTERVAL 12 WEEK) THEN joined.purchase_revenue_in_usd END)/count (distinct joined.users) AS week12_revenue,
+FROM
+joined
+group by registration_cohort
+order by registration_cohort
