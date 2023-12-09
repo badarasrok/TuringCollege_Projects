@@ -1,0 +1,12 @@
+SELECT
+DATE_TRUNC(subscription_start, WEEK) AS week,
+COUNT(DISTINCT user_pseudo_id) AS cohort_size,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 1 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week1,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 2 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week2,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 3 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week3,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 4 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week4,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 5 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week5,
+COUNT(DISTINCT CASE WHEN subscription_end > DATE_ADD(subscription_start, INTERVAL 6 WEEK) OR subscription_end IS NULL THEN user_pseudo_id END) AS retained_week6
+  FROM `turing_data_analytics.subscriptions`
+GROUP BY week
+ORDER BY week;
