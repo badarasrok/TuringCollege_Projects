@@ -1,0 +1,60 @@
+WITH ActualClicks AS (
+  SELECT
+    am.campaign,
+    am.month,
+    COUNT(DISTINCT CASE WHEN event_name = "page_view" THEN re.user_pseudo_id END) AS actual_clicks
+  FROM
+    `tc-da-1.turing_data_analytics.adsense_monthly` AS am
+  INNER JOIN
+    `turing_data_analytics.raw_events` AS re
+    ON
+    am.campaign = re.campaign
+  WHERE
+    am.campaign IN ('NewYear_V1', 'NewYear_V2', 'BlackFriday_V1', 'BlackFriday_V2')
+    AND am.month <> 202111
+  GROUP BY
+    am.campaign, am.month
+),
+PageViews AS (
+  SELECT
+    re.campaign,
+    am.month,
+    COUNT(DISTINCT re.user_pseudo_id) AS page_views
+  FROM
+    `tc-da-1.turing_data_analytics.adsense_monthly` AS am
+  JOIN
+    `turing_data_analytics.raw_events` AS re
+    ON
+    am.campaign = re.campaign
+  WHERE
+    re.event_name = 'page_view'
+    AND re.country IN ("United States", "India", "Canada")
+    AND am.month <> 202111
+  GROUP BY
+    re.campaign, am.month
+)
+SELECT
+  am.campaign,
+  am.Impressions AS total_impressions,
+  COUNT(DISTINCT CASE WHEN re.event_name = 'page_view' THEN re.user_pseudo_id END) AS actual_clicks,
+  ROUND((ac.actual_clicks / am.Impressions) * 100, 2) AS estimated_ctr,
+FROM
+  `tc-da-1.turing_data_analytics.adsense_monthly` AS am
+JOIN
+  ActualClicks AS ac
+ON
+  am.campaign = ac.campaign AND am.month = ac.month
+JOIN
+  PageViews AS pv
+ON
+  am.campaign = pv.campaign AND am.month = pv.month
+LEFT JOIN
+  `turing_data_analytics.raw_events` AS re
+ON
+  am.campaign = re.campaign 
+WHERE
+  am.campaign IN ('NewYear_V1', 'NewYear_V2', 'BlackFriday_V1', 'BlackFriday_V2')
+GROUP BY
+  am.campaign, am.Impressions, ac.actual_clicks, pv.page_views
+ORDER BY
+  am.campaign;
