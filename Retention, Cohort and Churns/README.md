@@ -1,3 +1,5 @@
+Task for Retenetion, Cohort and Churns graded task
+
 You got a follow up task from your product manager to give stats on how subscriptions churn looks 
 like from a weekly retention standpoint. Your PM argues that to view retention numbers on a monthly
 basis takes too long and important insights from data might be missed out.
